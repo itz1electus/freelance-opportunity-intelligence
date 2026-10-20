@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# ADR-020: everything under data/ stays on this machine except data/shared/
+data/*
+!data/shared/
+!data/shared/**
+
+# Never commit databases, logs, environment files or key material anywhere
+*.sqlite
+*.sqlite-*
+*.db
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.foisnap
+
+# OS and editor noise
+.DS_Store
+.idea/
+.vscode/

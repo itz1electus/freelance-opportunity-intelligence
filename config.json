@@ -1,0 +1,5 @@
+{
+  "port": 4311,
+  "logLevel": "info",
+  "fixtureMode": true
+}

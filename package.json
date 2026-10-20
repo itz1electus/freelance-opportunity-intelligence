@@ -1,0 +1,41 @@
+{
+  "name": "foi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Freelance Opportunity Intelligence \u2014 local-first decision support for a two-partner freelance studio",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "workspaces": [
+    "packages/domain",
+    "packages/infra",
+    "packages/connectors",
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "dev": "node scripts/dev.mjs",
+    "open": "tsx apps/server/src/cli/open.ts",
+    "build": "npm run build -w @foi/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "rebuild:native": "npm rebuild better-sqlite3 --ignore-scripts=false",
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "precommit:check": "node scripts/check-committable.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}
