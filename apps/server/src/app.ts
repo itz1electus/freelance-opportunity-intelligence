@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { apiError } from './api/errors.ts';
+import { profileRoutes } from './api/profiles.ts';
 import { apiRoutes } from './api/routes.ts';
+import { AppError } from './application/errors.ts';
 import { serveWeb } from './api/static.ts';
 import type { AppDeps, AppEnv } from './context.ts';
 import { fetchMetadataGuard, hostGuard, mutationGuard, securityHeaders, sessionGuard } from './security/guards.ts';
@@ -37,11 +39,13 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.use('/api/*', mutationGuard(deps));
   app.use('/api/v1/*', sessionGuard(deps));
 
+  app.route('/api/v1', profileRoutes(deps));
   app.route('/api/v1', apiRoutes(deps));
   app.all('/api/*', (c) => apiError(c, 404, 'NOT_FOUND', 'Unknown API route.'));
   app.get('*', serveWeb(deps));
 
   app.onError((error, c) => {
+    if (error instanceof AppError) return apiError(c, error.status, error.code, error.message, error.details);
     deps.logger.error('http.unhandled_error', { requestId: c.get('requestId'), error });
     return apiError(c, 500, 'INTERNAL_ERROR', 'Something went wrong. The request ID is in the server log.');
   });

@@ -19,9 +19,9 @@ export interface RequestOptions {
   asFoiPage?: boolean;
 }
 
-export function makeTestServer(options: { fixtureMode?: boolean; port?: number } = {}) {
+export function makeTestServer(options: { fixtureMode?: boolean; port?: number; dataDir?: string } = {}) {
   const repoRoot = findRepoRoot();
-  const dataDir = mkdtempSync(join(tmpdir(), 'foi-server-'));
+  const dataDir = options.dataDir ?? mkdtempSync(join(tmpdir(), 'foi-server-'));
   const port = options.port ?? PORT;
   const config: FoiConfig = {
     repoRoot,
@@ -75,6 +75,7 @@ export function makeTestServer(options: { fixtureMode?: boolean; port?: number }
     (runtime.deps.database.sqlite.prepare('SELECT COUNT(*) AS n FROM background_jobs').get() as { n: number }).n;
 
   return {
+    dataDir,
     runtime,
     app,
     req,

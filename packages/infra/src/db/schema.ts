@@ -2,7 +2,7 @@
  * Drizzle table definitions for typed queries. The SQL files in ../../migrations
  * are what create the tables; a test checks the two agree (SPEC-04, PROC-01).
  */
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 
 export const appSettings = sqliteTable('app_settings', {
   key: text('key').primaryKey(),
@@ -76,4 +76,152 @@ export const backgroundJobs = sqliteTable(
   (t) => [index('idx_jobs_status_lease').on(t.status, t.leaseUntilMs), index('idx_jobs_ready').on(t.status, t.runAfterMs)],
 );
 
-export const tables = { appSettings, sessions, auditEvents, idempotencyKeys, backgroundJobs };
+// Phase 2: profiles (migrations/0002_profiles.sql)
+
+export const skills = sqliteTable('skills', {
+  key: text('key').primaryKey(),
+  label: text('label').notNull(),
+  category: text('category').notNull(),
+  origin: text('origin', { enum: ['seed', 'operator'] }).notNull(),
+  createdAtMs: integer('created_at_ms').notNull(),
+});
+
+export const skillAliases = sqliteTable(
+  'skill_aliases',
+  {
+    aliasNormalized: text('alias_normalized').primaryKey(),
+    skillKey: text('skill_key')
+      .notNull()
+      .references(() => skills.key, { onDelete: 'cascade' }),
+    origin: text('origin', { enum: ['seed', 'operator'] }).notNull(),
+  },
+  (t) => [index('idx_skill_aliases_skill').on(t.skillKey)],
+);
+
+export const services = sqliteTable('services', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  searchTaxonomyJson: text('search_taxonomy_json').notNull().default('[]'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  sortOrder: integer('sort_order').notNull(),
+});
+
+export const partners = sqliteTable('partners', {
+  id: text('id').primaryKey(),
+  slot: text('slot', { enum: ['A', 'B'] }).notNull(),
+  displayName: text('display_name').notNull(),
+  weeklyHours: integer('weekly_hours'),
+  exclusionsJson: text('exclusions_json').notNull().default('[]'),
+  qualificationsJson: text('qualifications_json').notNull().default('[]'),
+  notes: text('notes'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  profileVersion: integer('profile_version').notNull().default(1),
+  createdAtMs: integer('created_at_ms').notNull(),
+  updatedAtMs: integer('updated_at_ms').notNull(),
+});
+
+export const partnerSkills = sqliteTable(
+  'partner_skills',
+  {
+    id: text('id').primaryKey(),
+    partnerId: text('partner_id')
+      .notNull()
+      .references(() => partners.id, { onDelete: 'restrict' }),
+    canonicalSkillKey: text('canonical_skill_key')
+      .notNull()
+      .references(() => skills.key, { onDelete: 'restrict' }),
+    proficiency: text('proficiency', { enum: ['foundational', 'working', 'advanced', 'expert'] }).notNull(),
+    lastUsedYear: integer('last_used_year'),
+    notes: text('notes'),
+    updatedAtMs: integer('updated_at_ms').notNull(),
+  },
+  (t) => [unique().on(t.partnerId, t.canonicalSkillKey)],
+);
+
+export const partnerServices = sqliteTable(
+  'partner_services',
+  {
+    partnerId: text('partner_id')
+      .notNull()
+      .references(() => partners.id, { onDelete: 'restrict' }),
+    serviceId: text('service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'restrict' }),
+    deliverablesJson: text('deliverables_json').notNull().default('[]'),
+    limitations: text('limitations'),
+    updatedAtMs: integer('updated_at_ms').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.partnerId, t.serviceId] })],
+);
+
+export const portfolioEvidence = sqliteTable('portfolio_evidence', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  evidenceType: text('evidence_type').notNull(),
+  sourceUrl: text('source_url'),
+  summary: text('summary'),
+  claimsJson: text('claims_json').notNull().default('[]'),
+  verifiedLevel: text('verified_level').notNull(),
+  createdAtMs: integer('created_at_ms').notNull(),
+  updatedAtMs: integer('updated_at_ms').notNull(),
+});
+
+export const evidenceSkills = sqliteTable(
+  'evidence_skills',
+  {
+    evidenceId: text('evidence_id')
+      .notNull()
+      .references(() => portfolioEvidence.id, { onDelete: 'cascade' }),
+    skillKey: text('skill_key')
+      .notNull()
+      .references(() => skills.key, { onDelete: 'restrict' }),
+  },
+  (t) => [primaryKey({ columns: [t.evidenceId, t.skillKey] })],
+);
+
+export const partnerEvidence = sqliteTable(
+  'partner_evidence',
+  {
+    partnerId: text('partner_id')
+      .notNull()
+      .references(() => partners.id, { onDelete: 'restrict' }),
+    evidenceId: text('evidence_id')
+      .notNull()
+      .references(() => portfolioEvidence.id, { onDelete: 'cascade' }),
+    contributionNotes: text('contribution_notes'),
+  },
+  (t) => [primaryKey({ columns: [t.partnerId, t.evidenceId] }), index('idx_partner_evidence_evidence').on(t.evidenceId)],
+);
+
+export const studioProfileRevisions = sqliteTable(
+  'studio_profile_revisions',
+  {
+    id: text('id').primaryKey(),
+    revision: integer('revision').notNull().unique(),
+    combinedSnapshotJson: text('combined_snapshot_json').notNull(),
+    contentHash: text('content_hash').notNull(),
+    materialHash: text('material_hash').notNull(),
+    changeSummaryJson: text('change_summary_json').notNull().default('{}'),
+    createdAtMs: integer('created_at_ms').notNull(),
+  },
+  (t) => [index('idx_studio_revisions_material').on(t.materialHash)],
+);
+
+export const tables = {
+  appSettings,
+  sessions,
+  auditEvents,
+  idempotencyKeys,
+  backgroundJobs,
+  skills,
+  skillAliases,
+  services,
+  partners,
+  partnerSkills,
+  partnerServices,
+  portfolioEvidence,
+  evidenceSkills,
+  partnerEvidence,
+  studioProfileRevisions,
+};

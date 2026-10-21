@@ -21,6 +21,7 @@ data/*
 *.key
 *.p12
 *.foisnap
+*.tmp
 
 # OS and editor noise
 .DS_Store

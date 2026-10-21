@@ -6,6 +6,9 @@ import {
   DEFAULT_BUDGET,
   DEFAULT_CAPACITY,
   DEFAULT_COMMERCIAL_FLOORS,
+  normalizeSkillName,
+  SEED_SERVICES,
+  SEED_SKILLS,
 } from '@foi/domain';
 import { migrate, type MigrationResult } from './migrate.ts';
 import * as schema from './schema.ts';
@@ -71,6 +74,34 @@ export function seedDefaults(sqlite: Database.Database): number {
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       inserted += insert.run(key, JSON.stringify(value), Date.now()).changes;
     }
+  })();
+  return inserted + seedTaxonomy(sqlite);
+}
+
+/**
+ * Adds starter skills, aliases and services that are missing. Existing rows,
+ * including the operator's own skills, are never changed.
+ */
+export function seedTaxonomy(sqlite: Database.Database): number {
+  const now = Date.now();
+  const skill = sqlite.prepare(
+    "INSERT OR IGNORE INTO skills (key, label, category, origin, created_at_ms) VALUES (?, ?, ?, 'seed', ?)",
+  );
+  const alias = sqlite.prepare(
+    "INSERT OR IGNORE INTO skill_aliases (alias_normalized, skill_key, origin) VALUES (?, ?, 'seed')",
+  );
+  const service = sqlite.prepare(
+    'INSERT OR IGNORE INTO services (id, name, description, search_taxonomy_json, enabled, sort_order) VALUES (?, ?, ?, ?, 1, ?)',
+  );
+  let inserted = 0;
+  sqlite.transaction(() => {
+    for (const s of SEED_SKILLS) {
+      inserted += skill.run(s.key, s.label, s.category, now).changes;
+      for (const name of new Set([s.key, s.label, ...s.aliases].map(normalizeSkillName))) alias.run(name, s.key);
+    }
+    SEED_SERVICES.forEach((s, i) => {
+      inserted += service.run(s.id, s.name, s.description, JSON.stringify(s.searchTerms), i + 1).changes;
+    });
   })();
   return inserted;
 }

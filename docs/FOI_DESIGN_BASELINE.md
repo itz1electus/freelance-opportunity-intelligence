@@ -1,7 +1,7 @@
 ---
 document_id: FOI-DESIGN-001
 title: Freelance Opportunity Intelligence — Product and Architecture Design Baseline
-version: 1.1.0
+version: 1.1.1
 status: FROZEN — confirmed requirements with separately identified proposed defaults
 supersedes: 1.0.0
 as_of: 2026-10-20
@@ -12,7 +12,7 @@ related_specification: ./FOI_ARCHITECTURE_SPECIFICATION.md
 # Freelance Opportunity Intelligence (FOI)
 ## Product and Architecture Design Baseline
 
-**Version:** 1.1.0 (frozen)  
+**Version:** 1.1.1 (frozen)  
 **Date:** 20 October 2026 (v1.0.0 and v1.1.0)  
 **Status:** Design baseline. This document separates the user's confirmed requirements from implementer-proposed, configurable defaults and from dependencies that cannot be guaranteed before provider approval/testing.  
 **Companion:** [`FOI_ARCHITECTURE_SPECIFICATION.md`](./FOI_ARCHITECTURE_SPECIFICATION.md). The companion contains implementable schemas, API and TypeScript contracts, state machines, and verification criteria.
@@ -73,6 +73,7 @@ The following terms are normative throughout both files:
 | D-026 | macOS is the only supported platform for the MVP | CONFIRMED (v1.1.0) | Secrets live in each person's macOS Keychain. |
 | D-027 | Brave Search API is the web-search provider | CONFIRMED (v1.1.0) | Within the $5 search allocation. |
 | D-028 | Amounts in USD; English user interface | CONFIRMED (v1.1.0) | No currency conversion without a documented rate source. |
+| D-029 | The team files in `data/shared/` are JSON | CONFIRMED (v1.1.1) | Pretty-printed, sorted keys; no YAML dependency. See ADR-024. |
 
 ### 2.2 Proposed configurable defaults (not explicitly frozen numerical values)
 
@@ -442,6 +443,7 @@ The implementation-grade acceptance cases and detailed test names are maintained
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1.1 | 2026-10-21 | Added D-029 (JSON for `data/shared`). |
 | 1.1.0 | 2026-10-20 | Frozen. Added owner decisions D-020 to D-028; P-007 confirmed; host, security, cost and roadmap Phase 3 exit criterion updated. |
 | 1.0.0 | 2026-10-20 | Initial baseline. |
 

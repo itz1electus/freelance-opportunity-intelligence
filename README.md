@@ -2,7 +2,7 @@
 
 A local-first tool that finds freelance projects, scores them against the combined skills of the two studio partners, and writes technical assessments for the strongest leads. It runs on your Mac, only searches when you ask it to, and never submits bids or messages anyone.
 
-**Status:** Phase 1 of 7 (foundation) is complete. See [`docs/PROGRESS.md`](docs/PROGRESS.md) for what works today and what comes next.
+**Status:** Phases 1 and 2 of 7 are complete: the foundation, and the two partner profiles with the combined studio profile. See [`docs/PROGRESS.md`](docs/PROGRESS.md) for what works today and what comes next.
 
 ## Requirements
 
@@ -39,11 +39,13 @@ Everything stays inside this folder:
 
 ```
 data/
-  shared/      committed to Git: readable text files the team shares
+  shared/      committed to Git: the team's profiles and evidence as JSON (see data/shared/README.md)
   foi.sqlite   this machine only: working database and listing cache
   backups/     this machine only
   logs/        this machine only
 ```
+
+When a teammate's changes arrive through `git pull`, FOI shows a banner and loads them when you click **Load team changes**; it never overwrites files that changed outside the app.
 
 API keys and tokens never live in this folder. They go in your macOS Keychain (from Phase 3 on). Keep the folder on a local disk, not in iCloud Drive, Dropbox or a network share: sync tools can corrupt a live database, and FOI warns if it detects one.
 

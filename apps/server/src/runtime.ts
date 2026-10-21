@@ -13,6 +13,8 @@ import {
 } from '@foi/infra';
 import type Database from 'better-sqlite3';
 import { createApp } from './app.ts';
+import { ProfileService } from './application/profiles/service.ts';
+import { SharedSync } from './application/shared/sync.ts';
 import type { AppDeps, Clock } from './context.ts';
 import { LaunchTokens } from './security/launch-tokens.ts';
 import { SessionService } from './security/sessions.ts';
@@ -71,6 +73,10 @@ export function createRuntime(options: RuntimeOptions): Runtime {
 
   const localKey = randomBytes(32).toString('hex');
   const queue = new JobQueue(database.sqlite, clock);
+  const profiles = new ProfileService(database.sqlite, clock);
+  const shared = new SharedSync(database.sqlite, paths.shared, profiles, logger, clock, paths.backups);
+  profiles.setHooks(shared);
+  shared.startup();
   const webDist = join(config.repoRoot, 'apps', 'web', 'dist');
   const deps: AppDeps = {
     config,
@@ -80,6 +86,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     sessions: new SessionService(database.sqlite, clock),
     launchTokens: new LaunchTokens(clock),
     queue,
+    profiles,
+    shared,
     cookieName: `foi_sid_${installId(database.sqlite)}`,
     localKey,
     webDistDir: webDist,

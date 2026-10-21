@@ -3,3 +3,7 @@ export * from './defaults.ts';
 export * from './contracts/source.ts';
 export * from './contracts/api.ts';
 export * from './contracts/jobs.ts';
+export * from './canonical.ts';
+export * from './profiles/taxonomy.ts';
+export * from './profiles/contracts.ts';
+export * from './profiles/studio.ts';

@@ -9,30 +9,9 @@ import { idempotency } from '../application/idempotency.ts';
 import type { AppDeps, AppEnv } from '../context.ts';
 import { safeEqual } from '../security/tokens.ts';
 import { apiError } from './errors.ts';
+import { readJson } from './json.ts';
 
 const LaunchBodySchema = z.object({ token: z.string().min(20).max(200) }).strict();
-
-async function readJson<T extends z.ZodType>(
-  c: Context<AppEnv>,
-  schema: T,
-): Promise<{ ok: true; data: z.infer<T> } | { ok: false; response: Response }> {
-  let raw: unknown;
-  try {
-    raw = await c.req.json();
-  } catch {
-    return { ok: false, response: apiError(c, 400, 'VALIDATION_ERROR', 'Request body must be valid JSON.') };
-  }
-  const parsed = schema.safeParse(raw);
-  if (!parsed.success) {
-    return {
-      ok: false,
-      response: apiError(c, 422, 'VALIDATION_ERROR', 'Request body failed validation.', {
-        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
-      }),
-    };
-  }
-  return { ok: true, data: parsed.data };
-}
 
 export function apiRoutes(deps: AppDeps): Hono<AppEnv> {
   const api = new Hono<AppEnv>();
@@ -53,7 +32,7 @@ export function apiRoutes(deps: AppDeps): Hono<AppEnv> {
 
   api.get('/health', (c) => c.json({ status: 'ok' }));
 
-  api.get('/setup/status', (c) => c.json({ serverReady: true, partnersProvisioned: false }));
+  api.get('/setup/status', (c) => c.json({ serverReady: true, partnersProvisioned: deps.profiles.provisioned() }));
 
   api.post('/auth/launch', async (c) => {
     const body = await readJson(c, LaunchBodySchema);
@@ -105,6 +84,8 @@ export function apiRoutes(deps: AppDeps): Hono<AppEnv> {
       fixtureMode: deps.config.fixtureMode,
       warnings: [...deps.config.warnings, ...detectRiskyLocation(deps.config.dataDir)],
       dataLocation: 'data/ inside the project folder',
+      partnersProvisioned: deps.profiles.provisioned(),
+      shared: deps.shared.status(),
       budget: {
         monthlyHardCap: DEFAULT_BUDGET.monthlyHardCap,
         // Phase 1 makes no metered calls; the usage ledger arrives with the first paid integration.

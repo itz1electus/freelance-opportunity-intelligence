@@ -1,4 +1,6 @@
 import type { FoiConfig, Logger, OpenDatabase } from '@foi/infra';
+import type { ProfileService } from './application/profiles/service.ts';
+import type { SharedSync } from './application/shared/sync.ts';
 import type { LaunchTokens } from './security/launch-tokens.ts';
 import type { SessionService } from './security/sessions.ts';
 import type { JobQueue } from './worker/queue.ts';
@@ -13,6 +15,8 @@ export interface AppDeps {
   sessions: SessionService;
   launchTokens: LaunchTokens;
   queue: JobQueue;
+  profiles: ProfileService;
+  shared: SharedSync;
   /** Cookie name unique to this installation, so other local apps cannot collide with it. */
   cookieName: string;
   /** Secret shared with `npm run open` through a 0600 file; null disables that route. */

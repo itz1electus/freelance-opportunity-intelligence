@@ -51,20 +51,6 @@ export function AssessmentsPage() {
   );
 }
 
-export function ProfilesPage() {
-  return (
-    <Planned title="Profiles" phase={2}>
-      <p>
-        Partner A and Partner B each keep their own skills, portfolio evidence, services and weekly hours. FOI combines
-        them into one studio profile and remembers which partner backs each skill.
-      </p>
-      <p>
-        Profiles are saved as readable files in <code>data/shared/</code>, so your team sees every change in GitHub.
-      </p>
-    </Planned>
-  );
-}
-
 export function PipelinePage() {
   return (
     <Planned title="Pipeline" phase={6}>

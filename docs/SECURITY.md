@@ -18,6 +18,7 @@ FOI runs on one Mac for one operator, but it holds partner profiles, private not
 2. **FOI ↔ outside world (Phase 3+).** All outbound requests go through one restricted HTTP client that refuses private, loopback and link-local addresses at connection time. Lint forbids `fetch` and `node:https` anywhere else in server code.
 3. **FOI ↔ AI vendor (Phase 4+).** Listing text is untrusted. Model output is rendered as plain text, never HTML or remote images, and claims about a listing are checked against quoted text.
 4. **Repository ↔ GitHub.** Only `data/shared/` and source code are committed. A pre-commit check blocks databases, logs, environment files and key-shaped strings.
+5. **Teammates ↔ this machine (Phase 2).** Files pulled into `data/shared/` are treated as input to validate, not as trusted data. Every file is checked against a strict schema, cross-file references are checked, files with merge-conflict markers are refused, symlinks are ignored, files over 1 MB are rejected, and only six known path patterns are read. A load backs up the database first. FOI never overwrites files that changed outside it (ADR-024).
 
 ## Controls in place at Phase 1
 
@@ -35,6 +36,18 @@ FOI runs on one Mac for one operator, but it holds partner profiles, private not
 | Data folder permissions; synced-folder warning | `packages/infra/src/paths.ts` | P1-12 |
 | Pre-commit check | `scripts/check-committable.mjs` | P1-13 |
 | Install scripts disabled; exact pins; dependency allowlist | `.npmrc`, `docs/DEPENDENCIES.md` | P7-12 (manual until then) |
+
+## Controls added in Phase 2
+
+| Control | Where | Test |
+| --- | --- | --- |
+| Strict schemas on every profile, evidence and vocabulary request; evidence links limited to http(s) | `packages/domain/src/profiles/contracts.ts` | profiles.test.ts |
+| Evidence links rendered only for http(s), with `rel="noopener noreferrer"`; unencrypted links flagged | `apps/web/src/pages/profiles/EvidencePage.tsx` | browser walkthrough |
+| Immutable studio revisions (database triggers) | `migrations/0002_profiles.sql` | database.test.ts |
+| Optimistic version check so two tabs cannot overwrite each other | `PATCH /partners/:id` | profiles.test.ts |
+| Audit events for every profile change, without free text | `application/profiles/service.ts` | profiles.test.ts |
+| Shared-file validation, conflict detection, backup before load | `application/shared/sync.ts` | shared.test.ts |
+| Partner names never needed by scoring; the material projection excludes names and notes, so they need not reach an AI service (SEC-07, enforced from Phase 4) | `packages/domain/src/profiles/studio.ts` | studio.test.ts |
 
 ## The `npm run open` key
 

@@ -6,10 +6,10 @@ Read this first when resuming work. It says what exists, what was verified, and 
 
 | Phase | State | Date |
 | --- | --- | --- |
-| Spec freeze (baseline and architecture v1.1.0) | Done | 2026-10-20 |
-| 1 — Foundation, security shell, contracts | **Done; gate passed** | 2026-10-20 |
-| 2 — Partner profiles and studio profile | Next | |
-| 3 — Sources and manual search | Not started | |
+| Spec freeze (baseline and architecture v1.1.0; editorial 1.1.1) | Done | 2026-10-20, 2026-10-21 |
+| 1 — Foundation, security shell, contracts | **Done; gate passed** (also confirmed running on the Mac) | 2026-10-20 |
+| 2 — Partner profiles and studio profile | **Done; gate passed** | 2026-10-21 |
+| 3 — Sources and manual search | Next | |
 | 4 — Eligibility and scoring | Not started | |
 | 5 — Technical assessments and cost controls | Not started | |
 | 6 — Full dashboard and shortlist | Not started | |
@@ -39,35 +39,54 @@ All checks ran with `npm run check` in this folder and again in a clean copy (`n
 
 **Verified on Linux, not yet on a Mac.** Untested there: the `open` command that launches the browser, the Charter typeface (the fallback serif renders elsewhere), and the SQLite driver build on Apple Silicon. Run `npm run check` once on the Mac to confirm.
 
+## Phase 2 gate
+
+`npm run check` passes: typecheck, lint, 108 tests and build. The profile screens were also driven end to end in a headless browser, desktop and mobile, with no console errors: setup, skills (including a new vocabulary skill and undo), services, qualifications, joint evidence, the studio view, and a simulated teammate change through `data/shared`.
+
+| Test | Result | Where |
+| --- | --- | --- |
+| P2-01 Two separately editable partner slots after setup | Pass | `apps/server/test/profiles.test.ts` |
+| P2-02 Skill on Partner A only is attributed only to A | Pass | `profiles.test.ts`, `packages/domain/test/studio.test.ts` |
+| P2-03 Shared skill counted once; joint evidence counted once | Pass | `profiles.test.ts`, `studio.test.ts` |
+| P2-04 Skill, evidence and hours edits bump the partner version and add an immutable revision | Pass | `profiles.test.ts`; immutability trigger in `packages/infra/test/database.test.ts` |
+| P2-05 Older studio revision makes an evaluation stale | Pass at domain level (`studioStaleness`); the evaluation read model arrives in Phase 4 | `studio.test.ts` |
+| P2-06 Skill only B holds is limited to B's hours, not the pooled 45 | Pass at domain level (`capacityForSkills`); feasibility uses it from Phase 4 | `studio.test.ts`, `profiles.test.ts` |
+| P2-07 Claim without evidence shown as a gap, nothing fabricated | Pass | `profiles.test.ts`, `studio.test.ts`; UI "No evidence" flags and "Worth checking" list |
+| P2-08 Notes-only edit keeps the material hash | Pass | `profiles.test.ts`, `studio.test.ts` |
+| P2-09 Export then import into an empty database reproduces team data exactly | Pass. Fixture exclusion applies from Phase 3, when fixture rows exist | `apps/server/test/shared.test.ts` |
+
+Also covered: outside changes block edits until loaded; files with merge-conflict markers are refused and never overwritten; files deleted by a teammate are applied; startup loads changes after a database backup; unknown skills or partners in files are rejected; only changed files are rewritten.
+
 ## What exists
 
-- `packages/domain`: money (exact minor units, ISO 4217 exponents), source and job contracts, error codes, all numeric defaults with the frozen-semantics validator.
-- `packages/infra`: configuration (loopback only), data folder layout and permissions, allowlisted logging, SQLite with WAL, forward-only checksummed migrations, seeded settings.
+- `packages/domain`: money, source and job contracts, error codes, numeric defaults; **Phase 2:** canonical JSON, the skill vocabulary (58 skills with aliases) and six services, profile contracts, and pure studio functions: snapshot derivation, material projection, diff, staleness, per-skill capacity, completeness.
+- `packages/infra`: configuration (loopback only), data layout and permissions, allowlisted logging, SQLite with WAL, checksummed migrations `0001_foundation` and `0002_profiles`, seeded settings and vocabulary.
 - `packages/connectors`: source registry; every live source disabled until Phase 3.
-- `apps/server`: Hono API with the full ADR-011 guard chain, launch-token sign-in, hashed sessions, audit log, idempotency, durable job queue with leases and retries, in-process worker, `npm start` and `npm run open`.
-- `apps/web`: React shell with the three-column Opportunities layout, the score legend, demo banner, budget meter, Settings (sources, worker check, sign-out everywhere, recent activity). Pages for later phases say what will arrive and when.
+- `apps/server`: the ADR-011 guard chain, launch-token sign-in, sessions, audit log, idempotency, job queue and worker; **Phase 2:** `ProfileService` (transactional changes, version bumps, immutable revisions) and `SharedSync` (`data/shared` export, outside-change detection, validated loading).
+- `apps/web`: shell, Opportunities layout, Settings; **Phase 2:** first-run setup, Studio overview with the combined skills matrix, partner editors (basics, skills with vocabulary matching, services, qualifications, exclusions), evidence editor, the team-changes banner, and undo toasts.
 
-## API at Phase 1
+## API
 
-`GET /api/v1/health`, `GET /setup/status`, `POST /auth/launch`, `POST /auth/launch-tokens` (local key), `GET|DELETE /auth/session`, `DELETE /auth/sessions`, `GET /system`, `GET /sources`, `GET /audit-events`, `POST /fixture/jobs` (demo mode only), `GET /jobs/:id`, `POST /jobs/:id/cancel`.
+Phase 1: `GET /health`, `GET /setup/status`, `POST /auth/launch`, `POST /auth/launch-tokens`, `GET|DELETE /auth/session`, `DELETE /auth/sessions`, `GET /system`, `GET /sources`, `GET /audit-events`, `POST /fixture/jobs`, `GET /jobs/:id`, `POST /jobs/:id/cancel`.
 
-## Next: Phase 2
+Phase 2: `POST /setup/partners`; `GET /partners`, `GET|PATCH /partners/:id`; `PUT|DELETE /partners/:id/skills/:skillKey`; `PUT|DELETE /partners/:id/services/:serviceId`; `GET|POST /skills`; `GET /services`; `GET|POST /evidence`, `PUT|DELETE /evidence/:id`; `GET /studio-profile`, `GET /studio-profile/revisions`; `GET /shared/status`, `POST /shared/reload`.
 
-Scope (spec §11 Phase 2, P2-01 to P2-09):
+## Next: Phase 3 — sources and manual search
 
-1. Migration `0002`: `partners` (with `active` flag, SPEC-09), `skills` and `skill_aliases`, `partner_skills`, `portfolio_evidence`, `partner_evidence`, `services`, `partner_services`, `studio_profile_revisions` with `content_hash` and `studio_material_hash` (COST-03).
-2. Seed the six service categories and a starter skill taxonomy with aliases (for example "Power BI", "PowerBI", "Microsoft Power BI").
-3. Studio profile derivation: union of skills with per-partner provenance, evidence index without double counting, capacity per partner.
-4. `data/shared/` export on every change and import on an empty database (P2-09). **Decision needed at the start of Phase 2:** pretty-printed JSON (no new dependency, proposed) or YAML (needs a parser dependency).
-5. First-run wizard and the two partner editors (UX-01, UX-12).
+Scope (spec §11 Phase 3, P3-01 to P3-19):
+
+1. Migration `0003`: `sources`, `source_policies` (with attestation fields), `source_connections`, `search_presets`, `search_runs`, `search_run_sources`, `opportunities`, `source_listings`, `source_listing_cache`, `listing_observations`, `search_run_results`, `usage_events`. Rebuild `background_jobs` to add the `search_run_id` foreign key.
+2. The restricted outbound HTTP client with SSRF checks at connection time (SEC-09), and `SecretStore` on the macOS Keychain (ADR-013).
+3. Fixture connector with synthetic listings, then the Brave Search connector (D-027), then Freelancer.com and Upwork behind their approvals.
+4. Manual search runs with the ADR-019 status model, cancellation, per-source outcomes, the cost preflight, and the Search page.
+5. Phase 3 closes on fixtures (D-023); the live-source test is a separate gate.
+
+**Needed from the owner before the live parts of Phase 3:** a Brave Search API key, and the status of the Upwork and Freelancer API applications.
 
 ## Open issues
 
 None.
 
-## Resuming in the Claude desktop app
+## Working location
 
-1. Unzip the project to a local folder, for example `~/Projects/foi` (not iCloud Drive or Dropbox).
-2. In that folder: `npm ci`, `npm run rebuild:native`, `npm run check`, then `npm start`.
-3. Optionally `npm run hooks:install` (the folder already has Git history).
-4. Open the FOI Project in the Claude desktop app, link the folder, and ask to continue with Phase 2. The frozen specs and this file are also saved in the Project.
+The project lives at `~/Developer/freelance-opportunity-intelligence` on the owner's Mac. Claude builds and tests in its own workspace, then copies source files into that folder; the Mac's `node_modules` are never touched from Claude's Linux shell, because the native SQLite driver is built for macOS. After new files arrive, run `npm ci`, then `npm run rebuild:native` if dependencies changed, then `npm run check` and `npm start` on the Mac.

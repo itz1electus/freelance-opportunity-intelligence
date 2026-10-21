@@ -1,5 +1,7 @@
 import { formatMoney } from '@foi/domain';
-import type { MouseEvent, ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
+import { api } from '../api/client.ts';
+import { errorMessage } from '../api/hooks.ts';
 import type { SystemInfo } from '../api/types.ts';
 import { navigate, usePath } from '../router.ts';
 
@@ -84,6 +86,7 @@ export function Shell({
           </button>
         </div>
       </header>
+      {system && <SharedBanner shared={system.shared} />}
       {system && system.warnings.length > 0 && (
         <div className="warning-band" role="alert">
           {system.warnings.map((w) => (
@@ -96,4 +99,69 @@ export function Shell({
       </main>
     </>
   );
+}
+
+function SharedBanner({ shared }: { shared: SystemInfo['shared'] }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+
+  const reload = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/shared/reload', { method: 'POST' });
+      window.location.reload();
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  };
+
+  if (shared.state === 'changed_externally') {
+    return (
+      <div className="notice-band notice-band--action" role="alert">
+        <p>
+          Team data in <code>data/shared</code> changed outside FOI, for example after <code>git pull</code>. Load it
+          before editing profiles; your edits are paused until then.
+        </p>
+        <button type="button" className="button button--small" disabled={busy} onClick={() => void reload()}>
+          Load team changes
+        </button>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+    );
+  }
+  if (shared.state === 'invalid' && shared.problem) {
+    return (
+      <div className="notice-band notice-band--problem" role="alert">
+        <p>
+          FOI cannot read <code>{shared.problem.file}</code>: {shared.problem.message} Profile edits are paused so the
+          file is not overwritten. Fix it, then try again.
+        </p>
+        <button type="button" className="button button--small" disabled={busy} onClick={() => void reload()}>
+          Try again
+        </button>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+    );
+  }
+  if (shared.exportError) {
+    return (
+      <div className="notice-band notice-band--problem" role="alert">
+        <p>{shared.exportError} FOI keeps your changes and will try again on the next edit.</p>
+      </div>
+    );
+  }
+  if (shared.notice && dismissed !== shared.notice) {
+    return (
+      <div className="notice-band" role="status">
+        <p>{shared.notice}</p>
+        <button type="button" className="button button--quiet button--small" onClick={() => setDismissed(shared.notice)}>
+          Dismiss
+        </button>
+      </div>
+    );
+  }
+  return null;
 }

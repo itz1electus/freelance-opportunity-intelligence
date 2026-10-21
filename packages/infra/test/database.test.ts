@@ -11,18 +11,58 @@ const tempFile = () => join(mkdtempSync(join(tmpdir(), 'foi-db-')), 'foi.sqlite'
 describe('database foundation', () => {
   it('P1-02: initializing twice is idempotent and seeds no duplicates', () => {
     const file = tempFile();
+    const all = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
+    expect(all.length).toBeGreaterThanOrEqual(2);
     const first = openDatabase(file);
-    expect(first.migrations.applied).toEqual(['0001_foundation.sql']);
+    expect(first.migrations.applied).toEqual(all);
     const count1 = first.sqlite.prepare('SELECT COUNT(*) AS n FROM app_settings').get() as { n: number };
     first.close();
 
     const second = openDatabase(file);
     expect(second.migrations.applied).toEqual([]);
-    expect(second.migrations.alreadyApplied).toEqual(['0001_foundation.sql']);
+    expect(second.migrations.alreadyApplied).toEqual(all);
     const count2 = second.sqlite.prepare('SELECT COUNT(*) AS n FROM app_settings').get() as { n: number };
     expect(count2.n).toBe(count1.n);
     expect(count1.n).toBeGreaterThan(0);
     second.close();
+  });
+
+  it('seeds the skill vocabulary and six services once', () => {
+    const file = tempFile();
+    const a = openDatabase(file);
+    const count = (sql: string) => (a.sqlite.prepare(sql).get() as { n: number }).n;
+    const skills = count('SELECT COUNT(*) AS n FROM skills');
+    expect(skills).toBeGreaterThan(40);
+    expect(count('SELECT COUNT(*) AS n FROM services')).toBe(6);
+    const viaAlias = a.sqlite.prepare("SELECT skill_key FROM skill_aliases WHERE alias_normalized = 'microsoftpowerbi'").get();
+    expect(viaAlias).toEqual({ skill_key: 'power-bi' });
+    a.close();
+    const b = openDatabase(file);
+    expect((b.sqlite.prepare('SELECT COUNT(*) AS n FROM skills').get() as { n: number }).n).toBe(skills);
+    b.close();
+  });
+
+  it('keeps studio profile revisions immutable', () => {
+    const { sqlite, close } = openDatabase(':memory:');
+    sqlite
+      .prepare(
+        "INSERT INTO studio_profile_revisions (id, revision, combined_snapshot_json, content_hash, material_hash, created_at_ms) VALUES ('r1', 1, '{}', 'h', 'm', 1)",
+      )
+      .run();
+    expect(() => sqlite.prepare("UPDATE studio_profile_revisions SET content_hash = 'x'").run()).toThrow(/immutable/);
+    expect(() => sqlite.prepare('DELETE FROM studio_profile_revisions').run()).toThrow(/immutable/);
+    close();
+  });
+
+  it('allows only one active partner per slot', () => {
+    const { sqlite, close } = openDatabase(':memory:');
+    const insert = sqlite.prepare(
+      "INSERT INTO partners (id, slot, display_name, active, created_at_ms, updated_at_ms) VALUES (?, 'A', 'X', ?, 0, 0)",
+    );
+    insert.run('p1', 1);
+    expect(() => insert.run('p2', 1)).toThrow(/UNIQUE/);
+    expect(() => insert.run('p3', 0)).not.toThrow();
+    close();
   });
 
   it('keeps an operator-changed setting when defaults are re-seeded', () => {

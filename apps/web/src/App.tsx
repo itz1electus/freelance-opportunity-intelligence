@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, onUnauthorized } from './api/client.ts';
+import { api, onDataChanged, onUnauthorized } from './api/client.ts';
 import type { SystemInfo } from './api/types.ts';
 import { Shell } from './components/Shell.tsx';
+import { ToastProvider } from './components/Toast.tsx';
 import { LaunchPage, SignedOutPage } from './pages/AuthPages.tsx';
 import { OpportunitiesPage } from './pages/OpportunitiesPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
-import { AssessmentsPage, NotFoundPage, PipelinePage, ProfilesPage, SearchPage } from './pages/SimplePages.tsx';
+import { ProfilesPage } from './pages/profiles/ProfilesPage.tsx';
+import { AssessmentsPage, NotFoundPage, PipelinePage, SearchPage } from './pages/SimplePages.tsx';
 import { navigate, usePath } from './router.ts';
 
 type AuthState = 'checking' | 'signed-in' | 'signed-out';
@@ -25,6 +27,7 @@ export function App() {
   }, [loadSystem]);
 
   useEffect(() => onUnauthorized(() => setAuth('signed-out')), []);
+  useEffect(() => onDataChanged(loadSystem), [loadSystem]);
 
   useEffect(() => {
     if (path === '/launch' || auth !== 'checking') return;
@@ -47,17 +50,23 @@ export function App() {
   };
 
   let page: React.ReactNode;
-  if (path === '/' || path.startsWith('/opportunities')) page = <OpportunitiesPage fixtureMode={system?.fixtureMode ?? true} />;
+  if (path === '/' || path.startsWith('/opportunities')) {
+    page = <OpportunitiesPage fixtureMode={system?.fixtureMode ?? true} provisioned={system?.partnersProvisioned ?? false} />;
+  }
   else if (path.startsWith('/search')) page = <SearchPage />;
   else if (path.startsWith('/assessments')) page = <AssessmentsPage />;
-  else if (path.startsWith('/profiles')) page = <ProfilesPage />;
+  else if (path.startsWith('/profiles')) {
+    page = system ? <ProfilesPage provisioned={system.partnersProvisioned} onProvisioned={loadSystem} /> : null;
+  }
   else if (path.startsWith('/pipeline')) page = <PipelinePage />;
   else if (path.startsWith('/settings')) page = <SettingsPage system={system} onSignedOut={() => setAuth('signed-out')} />;
   else page = <NotFoundPage />;
 
   return (
-    <Shell system={system} onSignOut={() => void signOut()}>
-      {page}
-    </Shell>
+    <ToastProvider>
+      <Shell system={system} onSignOut={() => void signOut()}>
+        {page}
+      </Shell>
+    </ToastProvider>
   );
 }

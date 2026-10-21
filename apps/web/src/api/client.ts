@@ -6,6 +6,7 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly requestId: string | null,
+    readonly details: Record<string, unknown> | null = null,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -14,11 +15,21 @@ export class ApiError extends Error {
 
 type Listener = () => void;
 const unauthorizedListeners = new Set<Listener>();
+const changeListeners = new Set<Listener>();
 
 /** Lets the app shell switch to the signed-out screen whenever a session ends. */
 export function onUnauthorized(listener: Listener): () => void {
   unauthorizedListeners.add(listener);
   return () => unauthorizedListeners.delete(listener);
+}
+
+/**
+ * Fires after any successful change, and after a refusal caused by the shared
+ * team files, so the app shell can refresh its status banners.
+ */
+export function onDataChanged(listener: Listener): () => void {
+  changeListeners.add(listener);
+  return () => changeListeners.delete(listener);
 }
 
 /**
@@ -46,9 +57,12 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       envelope?.error?.code ?? 'INTERNAL_ERROR',
       envelope?.error?.message ?? `Request failed with status ${res.status}`,
       envelope?.error?.requestId ?? null,
+      (envelope?.error?.details as Record<string, unknown> | undefined) ?? null,
     );
     if (res.status === 401 && path !== '/auth/launch') unauthorizedListeners.forEach((l) => l());
+    if (error.code.startsWith('SHARED_DATA_')) changeListeners.forEach((l) => l());
     throw error;
   }
+  if (method !== 'GET') changeListeners.forEach((l) => l());
   return data as T;
 }

@@ -1,7 +1,7 @@
 ---
 document_id: FOI-ARCH-001
 title: Freelance Opportunity Intelligence — Version-Controlled Architecture and Implementation Specification
-version: 1.1.0
+version: 1.1.1
 status: FROZEN for implementation; source integrations pending authorization and fixtures
 supersedes: 1.0.0
 review: ./FOI_SPEC_REVIEW_2026-10-20.md
@@ -13,7 +13,7 @@ language: TypeScript
 # Freelance Opportunity Intelligence (FOI)
 ## Version-Controlled Architecture and Implementation Specification
 
-**Spec version:** `1.1.0` (frozen)  
+**Spec version:** `1.1.1` (frozen; 1.1.1 is an editorial patch)  
 **Issued:** 20 October 2026 (v1.0.0); frozen as v1.1.0 on 20 October 2026  
 **Upstream product baseline:** [`FOI_DESIGN_BASELINE.md`](./FOI_DESIGN_BASELINE.md)  
 **Authoritative scope:** Single-operator, two partner profiles, combined-studio scoring, manual searches, local-first, no submission automation.  
@@ -31,7 +31,7 @@ language: TypeScript
 - **PROPOSED:** adjustable starting value, **not** an explicitly confirmed precise setting.
 - **EXTERNAL:** gated by provider access, terms, and sample payload verification.
 
-Canonical decision IDs are in the product baseline (`D-001` through `D-028`, `P-001` through `P-012`). The following are additionally **implementation** decisions, not new user-confirmed features:
+Canonical decision IDs are in the product baseline (`D-001` through `D-029`, `P-001` through `P-012`). The following are additionally **implementation** decisions, not new user-confirmed features:
 
 | ADR | Decision | Rationale |
 |---|---|---|
@@ -56,6 +56,8 @@ Canonical decision IDs are in the product baseline (`D-001` through `D-028`, `P-
 | ADR-019 *(v1.1.0)* | Run status QUEUED, RUNNING, CANCELLING, then one terminal state from a pure, truth-table-tested function; progress as per-stage counters | Cancellation in paid stages; correct terminal states (SPEC-02). |
 | ADR-020 *(v1.1.0)* | All data under `<repo>/data/`; `data/shared/` text export committed; database, cache, backups and logs ignored by Git; encrypted snapshots for full copies | Self-contained, shareable through a private repo without breaching retention rules (SEC-11, D-025). |
 | ADR-021 *(v1.1.0)* | Worker runs inside the API process for the MVP, behind the same module boundary | One start command, one SQLite writer, simpler recovery (UX-01). |
+| ADR-023 *(v1.1.1)* | Evidence is a studio-level resource at `/evidence` with one or two partner credits (`docs/adr/ADR-023-evidence-resource.md`) | Joint proof counts once without an owning partner (P2-03). |
+| ADR-024 *(v1.1.1)* | `data/shared` files are the shared copy; outside changes are detected, loaded on request or at startup, never overwritten (`docs/adr/ADR-024-shared-sync.md`) | Protects teammates' work under D-025. |
 | ADR-022 *(v1.1.0)* | Dependency allowlist; committed lockfile; `npm ci`; `ignore-scripts=true` with an explicit native rebuild; exact pins | Supply-chain risk on a machine holding credentials (SEC-13). |
 
 ---
@@ -1015,9 +1017,13 @@ For development fixtures, use fictional tasks with `source='fixture'` and named 
 | `PATCH` | `/partners/:id` | Update partner name, availability and constraints. |
 | `PUT` | `/partners/:id/skills/:skillKey` | Upsert one capability record. |
 | `DELETE` | `/partners/:id/skills/:skillKey` | Remove one skill with profile version bump. |
-| `POST` | `/partners/:id/evidence` | Add portfolio/project evidence. |
-| `PATCH` | `/partners/:id/evidence/:evidenceId` | Edit evidence. |
-| `DELETE` | `/partners/:id/evidence/:evidenceId` | Remove evidence. |
+| `GET`, `POST` | `/evidence` | *(v1.1.1, ADR-023)* List and add evidence; credits name one or both partners. |
+| `PUT`, `DELETE` | `/evidence/:id` | *(v1.1.1, ADR-023)* Replace or delete evidence. |
+| `POST` | `/setup/partners` | *(v1.1.1)* First-run creation of the two partner slots. |
+| `PUT`, `DELETE` | `/partners/:id/services/:serviceId` | *(v1.1.1)* Offer or withdraw a service with deliverables and limitations. |
+| `GET`, `POST` | `/skills` | *(v1.1.1)* Skill vocabulary with aliases; add an operator skill. |
+| `GET` | `/studio-profile/revisions` | *(v1.1.1)* Recent immutable studio revisions with change summaries. |
+| `GET`, `POST` | `/shared/status`, `/shared/reload` | *(v1.1.1, ADR-024)* State of `data/shared` and loading team changes. |
 | `GET` | `/services` | Service taxonomy catalog. |
 | `GET` | `/studio-profile` | Computed current combined profile and provenance. |
 | `GET` | `/sources` | Connector states, authorization, source health (no secrets). |
@@ -1480,7 +1486,7 @@ The implementation must add these scripts; they are not asserted to exist in a f
 - Define schema migration versions, reviewed API changes, and scoring-policy version increments in the same PR.
 - Every substantive design change to a **CONFIRMED** requirement requires explicit owner approval; changing **PROPOSED** defaults requires a documented settings migration or ADR, not silent code drift.
 - Preserve fixtures, ADRs, and security acceptance tests as version-controlled artifacts.
-- Do not push credentials, full marketplace data dumps, local user profiles, actual client data, or private generated assessment bodies into source control.
+- Do not push credentials, full marketplace data dumps, actual client data or provider listing text into source control. *(v1.1.1)* Partner profiles, evidence, settings, pipeline items, scores and assessments **are** committed, through the `data/shared/` export only, to the team's private repository (D-025, ADR-020, ADR-024).
 - Maintain a provider register with access decision, approval date, relevant agreement/reference, retention TTL, permissible stored fields, attribution rule, and external-LLM rule.
 
 ### 12.1 Suggested Architecture Decision Record template
@@ -1635,6 +1641,7 @@ Every finding below is **accepted**. The "Change" text of each finding in the re
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1.1 | 2026-10-21 | Editorial patch during Phase 2: ADR-023 (evidence routes) and ADR-024 (shared-file sync); §7.2 endpoint rows updated; §12 source-control rule reconciled with D-025. Owner decision: `data/shared` uses JSON. |
 | 1.1.0 | 2026-10-20 | Frozen. ADR-011 to ADR-022; owner decisions D-020 to D-028; review findings adopted; §1.1, §1.2, §2.2, §4.1, §7.1, §7.2, §8.1, §10.2 and §11 corrected in place. |
 | 1.0.0 | 2026-10-20 | Initial implementation-ready baseline. |
 

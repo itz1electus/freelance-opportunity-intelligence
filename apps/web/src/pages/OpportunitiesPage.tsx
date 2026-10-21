@@ -6,7 +6,7 @@ import { useDocumentTitle } from '../router.ts';
  * The three-column feed (baseline §9). In Phase 1 it shows its structure and
  * explains what will fill it, rather than an empty table.
  */
-export function OpportunitiesPage({ fixtureMode }: { fixtureMode: boolean }) {
+export function OpportunitiesPage({ fixtureMode, provisioned }: { fixtureMode: boolean; provisioned: boolean }) {
   useDocumentTitle('Opportunities');
   return (
     <div className="feed-layout">
@@ -23,12 +23,14 @@ export function OpportunitiesPage({ fixtureMode }: { fixtureMode: boolean }) {
           <p className="empty__lead">No opportunities yet.</p>
           <p>
             FOI only searches when you ask it to. Searching arrives in Phase 3
-            {fixtureMode ? ', starting with demo listings you can try safely.' : '.'} Before that, add both partner
-            profiles so scores have something to match against.
+            {fixtureMode ? ', starting with demo listings you can try safely.' : '.'}{' '}
+            {provisioned
+              ? 'Meanwhile, keep both partner profiles complete: every score is matched against them.'
+              : 'Before that, set up both partner profiles so scores have something to match against.'}
           </p>
           <p className="empty__actions">
             <Link to="/profiles" className="button">
-              Open profiles
+              {provisioned ? 'Review profiles' : 'Set up profiles'}
             </Link>
             <Link to="/search" className="button button--quiet">
               See search sources

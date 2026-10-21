@@ -1,8 +1,8 @@
 {
   "name": "foi",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Freelance Opportunity Intelligence \u2014 local-first decision support for a two-partner freelance studio",
+  "description": "Freelance Opportunity Intelligence — local-first decision support for a two-partner freelance studio",
   "type": "module",
   "engines": {
     "node": ">=22.12"
